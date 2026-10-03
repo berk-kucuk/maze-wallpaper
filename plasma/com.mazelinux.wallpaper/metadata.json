@@ -1,0 +1,23 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "berkkucukk@proton.me",
+                "Name": "Berk Küçük"
+            }
+        ],
+        "Category": "",
+        "Description": "Static, live (video, GIF) and now-playing wallpapers for Maze Linux",
+        "Description[tr]": "Maze Linux için statik, canlı (video, GIF) ve çalan medya duvar kâğıtları",
+        "Icon": "preferences-desktop-wallpaper",
+        "Id": "com.mazelinux.wallpaper",
+        "License": "GPLv3+",
+        "Name": "Maze Wallpaper",
+        "Name[tr]": "Maze Duvar Kâğıdı",
+        "Version": "1.3.0",
+        "Website": "https://github.com/berk-kucuk/maze-wallpaper"
+    },
+    "X-KDE-ParentApp": "org.kde.plasmashell",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

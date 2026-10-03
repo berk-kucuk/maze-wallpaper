@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Maze Wallpaper app writes these through Plasma scripting
+  (mazewallpaper/core/plasma.py); config.qml edits the same keys from
+  Plasma's own "Configure Desktop" dialog. Keep the two in step.
+-->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+
+  <group name="General">
+    <!-- What is drawn when no media is showing: image | animated | video -->
+    <entry name="Kind" type="String">
+      <default>image</default>
+    </entry>
+    <!-- Absolute file path of the image, GIF or video -->
+    <entry name="Source" type="String">
+      <default>/usr/share/wallpapers/MazeOLED/contents/images/2560x1440.png</default>
+    </entry>
+    <!-- Image.PreserveAspectCrop = 2, PreserveAspectFit = 1, Stretch = 0 -->
+    <entry name="FillMode" type="Int">
+      <default>2</default>
+    </entry>
+    <entry name="Muted" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="Volume" type="Int">
+      <default>50</default>
+    </entry>
+    <entry name="PlaybackRate" type="Double">
+      <default>1.0</default>
+    </entry>
+    <!-- Pause live wallpapers: 0 never, 1 when a window is maximized or
+         fullscreen, 2 when any window is focused -->
+    <entry name="PauseMode" type="Int">
+      <default>1</default>
+    </entry>
+
+    <!-- Maze's "active blur": soften the desktop when a window has focus -->
+    <entry name="ActiveBlur" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="BlurRadius" type="Int">
+      <default>32</default>
+    </entry>
+    <!-- percent of black laid over the blurred desktop -->
+    <entry name="ActiveDim" type="Int">
+      <default>10</default>
+    </entry>
+
+    <!-- Media mode: show the cover of what is playing (Spotify, browser, …) -->
+    <entry name="MediaMode" type="Bool">
+      <default>false</default>
+    </entry>
+    <!-- 0 a widget in a corner, over the wallpaper; 1 the cover fills the screen -->
+    <entry name="MediaPlacement" type="Int">
+      <default>0</default>
+    </entry>
+    <!-- widget corner: 0 top-right, 1 top-left, 2 bottom-right, 3 bottom-left -->
+    <entry name="MediaCorner" type="Int">
+      <default>0</default>
+    </entry>
+    <!-- widget size, percent of the default -->
+    <entry name="MediaWidgetSize" type="Int">
+      <default>100</default>
+    </entry>
+    <!-- full screen: 0 blurred backdrop + sharp cover, 1 full-bleed cover, 2 cover only on black -->
+    <entry name="MediaStyle" type="Int">
+      <default>0</default>
+    </entry>
+    <entry name="MediaShowInfo" type="Bool">
+      <default>true</default>
+    </entry>
+    <!-- Scrolling lyrics from lrclib.net; sends artist/title there when on -->
+    <entry name="MediaLyrics" type="Bool">
+      <default>false</default>
+    </entry>
+    <!-- When true, a paused player falls back to the normal wallpaper -->
+    <entry name="MediaOnlyPlaying" type="Bool">
+      <default>false</default>
+    </entry>
+  </group>
+</kcfg>

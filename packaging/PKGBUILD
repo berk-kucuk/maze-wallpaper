@@ -1,0 +1,85 @@
+# Maintainer: Berk Küçük <berkkucukk@proton.me>
+#
+# LOCAL-BUILD PKGBUILD: ../build-pkg.sh generates the source tarball from the
+# working tree and pins pkgver from mazewallpaper/__init__.py.
+
+pkgname=maze-wallpaper
+pkgver=1.3.0
+pkgrel=1
+pkgdesc="Maze Wallpaper — static, live (video, GIF, scene) and now-playing wallpapers for Maze Linux"
+arch=('any')
+url="https://github.com/berk-kucuk/maze-wallpaper"
+license=('GPL-3.0-or-later')
+
+# PyQt6 comes from maze-python, the shared Maze venv at /opt/maze/venv.
+depends=(
+    'maze-python'        # /opt/maze/venv: PyQt6 (+ QtMultimedia, QtQuick)
+    'plasma-workspace'   # plasmashell, org.kde.taskmanager, the MPRIS QML model
+    'qt6-multimedia'     # video wallpapers (FFmpeg backend)
+    'qt6-declarative'    # QtQuick.Effects / Particles / Shapes for the scenes
+    'kconfig'            # kwriteconfig6, for the lock screen
+)
+optdepends=(
+    'ffmpeg: video thumbnails and lock-screen posters'
+    'qt6-multimedia-ffmpeg: H.264/HEVC/VP9/AV1 playback'
+)
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "$srcdir/$pkgname-$pkgver"
+
+    # ── Plasma wallpaper plugin ────────────────────────────────────────────
+    install -dm755 "$pkgdir/usr/share/plasma/wallpapers"
+    cp -r plasma/com.mazelinux.wallpaper "$pkgdir/usr/share/plasma/wallpapers/"
+
+    # ── App → /opt/maze-wallpaper ──────────────────────────────────────────
+    install -dm755 "$pkgdir/opt/maze-wallpaper"
+    cp -r mazewallpaper assets main.py "$pkgdir/opt/maze-wallpaper/"
+    find "$pkgdir/opt/maze-wallpaper" -name __pycache__ -type d -prune -exec rm -rf {} +
+
+    install -Dm755 /dev/stdin "$pkgdir/usr/bin/maze-wallpaper" << 'LAUNCHER'
+#!/usr/bin/env bash
+exec /opt/maze/venv/bin/python3 /opt/maze-wallpaper/main.py "$@"
+LAUNCHER
+
+    # MimeType lets Dolphin offer "Open with Maze Wallpaper" on images and
+    # videos; main.py imports files given on the command line.
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/maze-wallpaper.desktop" << 'DESKTOP'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Maze Wallpaper
+Name[tr]=Maze Duvar Kâğıdı
+GenericName=Live Wallpapers
+GenericName[tr]=Canlı Duvar Kâğıtları
+Comment=Static, live and now-playing wallpapers
+Comment[tr]=Statik, canlı ve çalan medya duvar kâğıtları
+Exec=maze-wallpaper %F
+Icon=maze-wallpaper
+Terminal=false
+Categories=Settings;DesktopSettings;Qt;KDE;
+Keywords=wallpaper;live;video;background;spotify;media;duvar;kağıdı;arka plan;
+MimeType=video/mp4;video/webm;video/x-matroska;video/quicktime;image/gif;image/png;image/jpeg;image/webp;
+StartupNotify=true
+StartupWMClass=maze-wallpaper
+DESKTOP
+
+    # High-resolution covers for media mode (see mazewallpaper/core/hires.py).
+    # Idles on a 10 s timer while media mode is off.
+    install -Dm644 /dev/stdin "$pkgdir/etc/xdg/autostart/maze-wallpaper-media.desktop" << 'AUTOSTART'
+[Desktop Entry]
+Type=Application
+Name=Maze Wallpaper media helper
+Comment=Fetches high-resolution cover art for Maze Wallpaper's media mode
+Exec=maze-wallpaper --media-helper
+Icon=maze-wallpaper
+Terminal=false
+NoDisplay=true
+X-KDE-autostart-after=plasmashell
+AUTOSTART
+
+    install -Dm644 assets/maze-wallpaper.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/maze-wallpaper.svg"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

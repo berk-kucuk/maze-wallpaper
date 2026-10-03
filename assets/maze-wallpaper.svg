@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Maze Wallpaper. Same family as Maze Guard, Maze Cloak and Qlam: an OLED
+       squircle, white strokes, one point of light. The mark is a screen with
+       a horizon running through it — a wallpaper — and a green "live" dot. -->
+  <defs>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.35" stop-color="#ffffff" stop-opacity="0.02"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.16"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.55" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="live" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#00e676" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#00e676" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.02"/>
+    </linearGradient>
+    <clipPath id="screen">
+      <rect x="196" y="262" width="632" height="500" rx="70"/>
+    </clipPath>
+  </defs>
+
+  <!-- squircle -->
+  <rect width="1024" height="1024" rx="228" fill="#000"/>
+  <rect width="1024" height="1024" rx="228" fill="url(#glow)"/>
+  <rect width="1024" height="1024" rx="228" fill="url(#sheen)"/>
+  <rect x="3" y="3" width="1018" height="1018" rx="225" fill="none" stroke="url(#rim)" stroke-width="6"/>
+
+  <!-- the landscape inside the screen -->
+  <g clip-path="url(#screen)">
+    <path d="M196 640 C 300 560, 400 548, 500 600 S 700 664, 828 560 V 762 H 196 Z" fill="url(#hill)"/>
+    <path d="M196 640 C 300 560, 400 548, 500 600 S 700 664, 828 560"
+          fill="none" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+  </g>
+  <!-- sun -->
+  <circle cx="378" cy="438" r="54" fill="#fff"/>
+
+  <!-- screen frame -->
+  <rect x="196" y="262" width="632" height="500" rx="70" fill="none" stroke="#fff" stroke-width="40"/>
+
+  <!-- live dot -->
+  <circle cx="726" cy="364" r="96" fill="url(#live)"/>
+  <circle cx="726" cy="364" r="30" fill="#00e676"/>
+</svg>
