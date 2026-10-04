@@ -49,21 +49,22 @@ Item {
     readonly property int marginX: Math.round(Math.max(28, 48 * unit))
     readonly property int marginY: Math.round(Math.max(28, 64 * unit))
 
-    // MPRIS only reports position when it jumps; between reports it is
-    // estimated locally, like Plasma's own media widget does.
-    property real shownPosition: position
-    onPositionChanged: shownPosition = position
-    Timer {
-        interval: 1000
-        repeat: true
-        running: widget.playing && widget.visible && widget.length > 0
-        onTriggered: widget.shownPosition = Math.min(widget.length, widget.shownPosition + 1e6)
-    }
+    // `position` already arrives extrapolated (main.qml, every 200 ms), the
+    // same clock the full-screen lyrics use. Estimating again here on top of
+    // it ran ahead by up to a second and was then pulled back by the next
+    // update, so the lyric line flicked forward, back and forward again.
+    readonly property real shownPosition: Math.min(length > 0 ? length : position, position)
 
+    // m:ss, or h:mm:ss once the media runs an hour or more — for both the
+    // elapsed time and the length, so the two read alike (0:05:12 / 1:23:45).
+    readonly property bool longMedia: length >= 3600e6
     function fmt(us) {
         const t = Math.max(0, Math.floor(us / 1e6));
-        const m = Math.floor(t / 60), s = t % 60;
-        return m + ":" + (s < 10 ? "0" : "") + s;
+        const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = t % 60;
+        const ss = (s < 10 ? "0" : "") + s;
+        if (!widget.longMedia)
+            return Math.floor(t / 60) + ":" + ss;
+        return h + ":" + (m < 10 ? "0" : "") + m + ":" + ss;
     }
 
     Item {
