@@ -81,5 +81,28 @@
     <entry name="MediaOnlyPlaying" type="Bool">
       <default>false</default>
     </entry>
+
+    <!-- Power. The app's profiles (performance / balanced / power saver) are
+         presets over these keys; see mazewallpaper/core/settings.py. -->
+    <!-- Freeze the live wallpaper once active blur has covered it -->
+    <entry name="PauseOnBlur" type="Bool">
+      <default>true</default>
+    </entry>
+    <!-- Media widget motion: 0 still, 1 light (a few steps a second), 2 smooth -->
+    <entry name="MediaAnimations" type="Int">
+      <default>1</default>
+    </entry>
+    <!-- Laptops: play only while plugged in -->
+    <entry name="PauseOnBattery" type="Bool">
+      <default>false</default>
+    </entry>
+    <!-- Laptops: pause on battery below this charge (percent); 0 never -->
+    <entry name="BatteryThreshold" type="Int">
+      <default>20</default>
+    </entry>
+    <!-- Pause while the system power profile is power-saver -->
+    <entry name="FollowPowerProfile" type="Bool">
+      <default>false</default>
+    </entry>
   </group>
 </kcfg>

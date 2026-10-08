@@ -1,6 +1,8 @@
-"""The Settings tab: how live wallpapers behave, sound, active blur, lock
-screen, and the app itself."""
+"""The Settings tab: how live wallpapers behave, power, sound, active blur,
+lock screen, and the app itself."""
 from __future__ import annotations
+
+from pathlib import Path
 
 from PyQt6.QtCore import QRectF, Qt, QUrl
 from PyQt6.QtGui import QColor, QDesktopServices, QImage, QPainter, QPixmap
@@ -11,6 +13,9 @@ from PyQt6.QtWidgets import (
 )
 
 from mazewallpaper.core import paths
+from mazewallpaper.core.settings import (
+    PROFILE_BALANCED, PROFILE_CUSTOM, PROFILE_PERFORMANCE, PROFILE_SAVER, PROFILES, profile_of,
+)
 
 _SPEEDS = (0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 _PREVIEW_W, _PREVIEW_H = 384, 216
@@ -40,6 +45,16 @@ def render_active_blur(wall: QPixmap, radius: int, dim: int, w: int, h: int) -> 
     x = (img.width() - w) // 2
     y = (img.height() - h) // 2
     return QPixmap.fromImage(img.copy(x, y, w, h))
+
+
+def has_battery(root: Path = Path("/sys/class/power_supply")) -> bool:
+    try:
+        return any((d / "type").read_text().strip() == "Battery" for d in root.iterdir())
+    except OSError:
+        return False
+
+
+_PROFILE_ORDER = (PROFILE_PERFORMANCE, PROFILE_BALANCED, PROFILE_SAVER, PROFILE_CUSTOM)
 
 
 def _slider(lo: int, hi: int, step: int, value: int) -> QSlider:
@@ -90,15 +105,34 @@ class SettingsView(QScrollArea):
 
         # ── performance ───────────────────────────────────────────────────
         g = group(t("grp_performance"))
-        g.addWidget(label(t("pause_label")), 0, 0)
+        g.addWidget(label(t("profile_label")), 0, 0)
+        self._profile = QComboBox()
+        for name in _PROFILE_ORDER:
+            self._profile.addItem(t(f"profile_{name}"), name)
+        self._profile.activated.connect(self._on_profile)
+        g.addWidget(self._profile, 0, 1, Qt.AlignmentFlag.AlignLeft)
+        self._profile_hint = hint("")
+        g.addWidget(self._profile_hint, 1, 0, 1, 2)
+
+        g.addWidget(label(t("pause_label")), 2, 0)
         self._pause = QComboBox()
         for key in ("pause_never", "pause_maximized", "pause_focused"):
             self._pause.addItem(t(key))
-        self._pause.setCurrentIndex(b.PauseMode)
         self._pause.currentIndexChanged.connect(lambda i: controller.set_behaviour(PauseMode=i))
-        g.addWidget(self._pause, 0, 1, Qt.AlignmentFlag.AlignLeft)
-        g.addWidget(hint(t("pause_hint")), 1, 0, 1, 2)
-        g.addWidget(label(t("speed_label")), 2, 0)
+        g.addWidget(self._pause, 2, 1, Qt.AlignmentFlag.AlignLeft)
+        self._pause_blur = QCheckBox(t("pause_blur"))
+        self._pause_blur.toggled.connect(lambda on: controller.set_behaviour(PauseOnBlur=on))
+        g.addWidget(self._pause_blur, 3, 1)
+        g.addWidget(hint(t("pause_hint")), 4, 0, 1, 2)
+
+        g.addWidget(label(t("anim_label")), 5, 0)
+        self._anim = QComboBox()
+        for key in ("anim_off", "anim_light", "anim_smooth"):
+            self._anim.addItem(t(key))
+        self._anim.currentIndexChanged.connect(lambda i: controller.set_behaviour(MediaAnimations=i))
+        g.addWidget(self._anim, 5, 1, Qt.AlignmentFlag.AlignLeft)
+        g.addWidget(hint(t("anim_hint")), 6, 0, 1, 2)
+        g.addWidget(label(t("speed_label")), 7, 0)
         self._speed = QComboBox()
         for s in _SPEEDS:
             self._speed.addItem(f"{s:g}×", s)
@@ -106,7 +140,30 @@ class SettingsView(QScrollArea):
         self._speed.setCurrentIndex(idx)
         self._speed.currentIndexChanged.connect(
             lambda i: controller.set_behaviour(PlaybackRate=float(_SPEEDS[i])))
-        g.addWidget(self._speed, 2, 1, Qt.AlignmentFlag.AlignLeft)
+        g.addWidget(self._speed, 7, 1, Qt.AlignmentFlag.AlignLeft)
+
+        # ── battery ───────────────────────────────────────────────────────
+        g = group(t("grp_battery"))
+        self._on_ac = QCheckBox(t("battery_plugged"))
+        self._on_ac.toggled.connect(lambda on: controller.set_behaviour(PauseOnBattery=on))
+        g.addWidget(self._on_ac, 0, 0, 1, 2)
+        g.addWidget(label(t("battery_below")), 1, 0)
+        row = QHBoxLayout()
+        self._threshold = _slider(0, 80, 5, b.BatteryThreshold)
+        self._threshold_value = QLabel()
+        self._threshold_value.setObjectName("meta")
+        self._threshold_value.setMinimumWidth(48)
+        self._threshold.valueChanged.connect(self._on_threshold)
+        row.addWidget(self._threshold)
+        row.addWidget(self._threshold_value)
+        g.addLayout(row, 1, 1)
+        self._follow = QCheckBox(t("battery_profile"))
+        self._follow.toggled.connect(lambda on: controller.set_behaviour(FollowPowerProfile=on))
+        g.addWidget(self._follow, 2, 0, 1, 2)
+        g.addWidget(hint(t("battery_hint") if has_battery() else t("battery_none")), 3, 0, 1, 2)
+
+        self._sync_power()
+        controller.behaviour_changed.connect(self._sync_power)
 
         # ── sound ─────────────────────────────────────────────────────────
         g = group(t("grp_sound"))
@@ -192,6 +249,41 @@ class SettingsView(QScrollArea):
 
         # The lock-screen box also lives on the preview panel; keep both honest.
         controller.lock_changed.connect(self._sync_lock)
+
+    # ── power ─────────────────────────────────────────────────────────────
+    def _on_profile(self, index: int) -> None:
+        name = self._profile.itemData(index)
+        if name in PROFILES:
+            self._c.set_behaviour(**PROFILES[name])
+        else:
+            self._sync_power()   # "custom" is a result, not something to pick
+
+    def _on_threshold(self, v: int) -> None:
+        v = round(v / 5) * 5    # the slider steps by 5; dragging does not
+        self._threshold_value.setText(f"{v}%" if v else self._c.t("battery_off"))
+        self._c.set_behaviour(BatteryThreshold=v)
+
+    def _sync_power(self) -> None:
+        """Show the behaviour as it is now, whoever changed it: a profile, one
+        of the controls here, or Plasma's own dialog through the app."""
+        b = self._c.behaviour
+        prof = profile_of(b)
+        controls = (self._profile, self._pause, self._pause_blur, self._anim,
+                    self._on_ac, self._threshold, self._follow)
+        for w in controls:
+            w.blockSignals(True)
+        self._profile.setCurrentIndex(_PROFILE_ORDER.index(prof))
+        self._pause.setCurrentIndex(b.PauseMode)
+        self._pause_blur.setChecked(b.PauseOnBlur)
+        self._anim.setCurrentIndex(max(0, min(2, b.MediaAnimations)))
+        self._on_ac.setChecked(b.PauseOnBattery)
+        self._threshold.setValue(b.BatteryThreshold)
+        self._follow.setChecked(b.FollowPowerProfile)
+        for w in controls:
+            w.blockSignals(False)
+        self._threshold.setEnabled(not b.PauseOnBattery)
+        self._threshold_value.setText(f"{b.BatteryThreshold}%" if b.BatteryThreshold else self._c.t("battery_off"))
+        self._profile_hint.setText(self._c.t(f"profile_{prof}_hint"))
 
     def _render_blur(self) -> None:
         wp = self._c.current_wallpaper()

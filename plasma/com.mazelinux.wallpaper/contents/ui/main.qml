@@ -15,7 +15,9 @@
     blur", the Maze desktop's signature).
 
     Live wallpapers pause whenever nobody can see them: behind a maximized or
-    fullscreen window (configurable), and behind the media layer.
+    fullscreen window (configurable), behind active blur and behind the media
+    layer. They can also pause to save power: on battery, on a low battery, or
+    while the system is in power-saver.
 
     The library, imports and choosing what to show belong to the Maze Wallpaper
     app; it writes this plugin's configuration through Plasma scripting.
@@ -28,6 +30,7 @@ import QtMultimedia
 import org.kde.plasma.plasmoid
 import org.kde.taskmanager as TaskManager
 import org.kde.plasma.private.mpris as Mpris
+import org.kde.plasma.plasma5support as P5Support
 
 WallpaperItem {
     id: root
@@ -236,13 +239,45 @@ WallpaperItem {
         lengthUs: root.player ? root.player.length : 0
     }
 
+    // ── Power ───────────────────────────────────────────────────────────────
+    // PowerDevil's data engine: AC, battery and the power profile, pushed on
+    // change. Connected only while a power option needs it.
+    readonly property bool watchPower: configuration.PauseOnBattery
+                                       || configuration.BatteryThreshold > 0
+                                       || configuration.FollowPowerProfile
+    P5Support.DataSource {
+        id: power
+        engine: "powermanagement"
+        connectedSources: root.watchPower ? ["AC Adapter", "Battery", "Power Profiles"] : []
+    }
+    readonly property var batteryData: power.data["Battery"] || ({})
+    readonly property bool hasBattery: batteryData["Has Battery"] === true
+    // No battery means mains power, whatever the AC source says.
+    readonly property bool onBattery: hasBattery && !!power.data["AC Adapter"]
+                                      && power.data["AC Adapter"]["Plugged in"] === false
+    readonly property int batteryPercent: batteryData["Percent"] !== undefined ? batteryData["Percent"] : 100
+    readonly property bool powerSaver: !!power.data["Power Profiles"]
+                                       && power.data["Power Profiles"]["Current Profile"] === "power-saver"
+    readonly property bool hiddenByPower: watchPower && (
+        (configuration.PauseOnBattery && onBattery)
+        || (onBattery && configuration.BatteryThreshold > 0 && batteryPercent < configuration.BatteryThreshold)
+        || (configuration.FollowPowerProfile && powerSaver))
+
     // ── Pausing ─────────────────────────────────────────────────────────────
     readonly property bool hiddenByWindows: configuration.PauseMode === 1 ? anyWindowCovering
                                           : configuration.PauseMode === 2 ? anyWindowActive
                                           : false
+    // Once active blur has fully set in, a still frame and a moving one look
+    // the same through it, so the video stops; it starts again as soon as the
+    // blur begins to lift.
+    readonly property bool hiddenByBlur: configuration.PauseOnBlur && desktopLayer.blurAmount >= 1
     // The media layer is opaque once faded in, so the wallpaper under it is
     // invisible and has no reason to keep decoding frames.
-    readonly property bool livePaused: hiddenByWindows || (mediaShown && mediaLayer.opacity >= 1)
+    readonly property bool livePaused: hiddenByWindows || hiddenByBlur || hiddenByPower
+                                       || (mediaShown && mediaLayer.opacity >= 1)
+    onLivePausedChanged: console.info("maze-wallpaper: live", livePaused ? "paused" : "playing",
+                                      "windows=" + hiddenByWindows, "blur=" + hiddenByBlur,
+                                      "power=" + hiddenByPower)
 
     readonly property bool blurOn: configuration.ActiveBlur && anyWindowActive
 
@@ -323,6 +358,9 @@ WallpaperItem {
             lyricsSynced: lyrics.synced
             showLyrics: lyrics.enabled && lyrics.available
             corner: root.configuration.MediaCorner
+            animations: root.configuration.MediaAnimations
+            // Motion on a desktop that saves power would undo the saving.
+            stillForPower: root.hiddenByPower
             sizePercent: Math.max(60, Math.min(180, root.configuration.MediaWidgetSize))
 
             visible: opacity > 0

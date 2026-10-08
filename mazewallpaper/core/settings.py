@@ -16,6 +16,7 @@ FILL_STRETCH, FILL_FIT, FILL_CROP = 0, 1, 2
 MEDIA_BLURRED, MEDIA_FULL, MEDIA_OLED = 0, 1, 2
 PLACE_WIDGET, PLACE_FULLSCREEN = 0, 1
 CORNER_TOP_RIGHT, CORNER_TOP_LEFT, CORNER_BOTTOM_RIGHT, CORNER_BOTTOM_LEFT = range(4)
+ANIM_OFF, ANIM_LIGHT, ANIM_SMOOTH = 0, 1, 2
 
 # Bumped when a default changes in a way existing users should get too.
 #   2: blur 48 → 32 and dim 25 → 10 (dark Maze wallpapers went black);
@@ -41,6 +42,39 @@ class Behaviour:
     MediaShowInfo: bool = True
     MediaLyrics: bool = False
     MediaOnlyPlaying: bool = False
+    # ── power ── (see PROFILES below)
+    PauseOnBlur: bool = True        # freeze the live wallpaper behind active blur
+    MediaAnimations: int = ANIM_LIGHT
+    PauseOnBattery: bool = False    # laptops: play only while plugged in
+    BatteryThreshold: int = 20      # laptops: pause on battery below this %, 0 = never
+    FollowPowerProfile: bool = False  # pause while the system is in power-saver
+
+
+# Power profiles are presets over the power keys above, not a setting of their
+# own: the profile shown is whichever preset the keys match, and any other mix
+# is "custom". So a hand-edited config, or one changed from Plasma's own dialog,
+# can never disagree with what the app shows.
+PROFILE_PERFORMANCE, PROFILE_BALANCED, PROFILE_SAVER, PROFILE_CUSTOM = (
+    "performance", "balanced", "saver", "custom")
+PROFILES: dict[str, dict] = {
+    # Always moving, as smooth as the screen allows.
+    PROFILE_PERFORMANCE: dict(PauseMode=PAUSE_NEVER, PauseOnBlur=False, MediaAnimations=ANIM_SMOOTH,
+                              PauseOnBattery=False, BatteryThreshold=0, FollowPowerProfile=False),
+    # Moves while you can see it; stops behind windows and blur, and when a
+    # laptop runs low.
+    PROFILE_BALANCED: dict(PauseMode=PAUSE_MAXIMIZED, PauseOnBlur=True, MediaAnimations=ANIM_LIGHT,
+                           PauseOnBattery=False, BatteryThreshold=20, FollowPowerProfile=False),
+    # Moves only on an idle desktop, on mains power, outside power-saver.
+    PROFILE_SAVER: dict(PauseMode=PAUSE_FOCUSED, PauseOnBlur=True, MediaAnimations=ANIM_OFF,
+                        PauseOnBattery=True, BatteryThreshold=20, FollowPowerProfile=True),
+}
+
+
+def profile_of(b: "Behaviour") -> str:
+    for name, keys in PROFILES.items():
+        if all(getattr(b, k) == v for k, v in keys.items()):
+            return name
+    return PROFILE_CUSTOM
 
 
 @dataclass

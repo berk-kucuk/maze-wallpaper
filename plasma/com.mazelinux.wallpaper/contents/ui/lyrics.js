@@ -21,3 +21,53 @@ function currentIndex(lines, synced, positionMs, lengthMs) {
     }
     return ans;
 }
+
+// ── shared lookup state ──────────────────────────────────────────────────────
+// plasmashell runs one wallpaper per screen, and this file is a .pragma
+// library: every screen shares one copy of what follows. A song is looked up
+// once, not once per monitor, which also halves the load on LRCLIB.
+
+// Only definitive answers are kept: lyrics, or LRCLIB saying it has none. A
+// "none" is retried after a while, since the database keeps growing; network
+// errors and rate limits are never stored, so they cannot stick to a song.
+const NEGATIVE_MS = 30 * 60 * 1000;
+var _results = {};   // key -> { lines, synced, at }
+var _waiting = {};   // key -> [function(result | null)] while a lookup runs
+
+function cached(key, now) {
+    const r = _results[key];
+    if (!r) return null;
+    if (r.lines.length === 0 && now - r.at > NEGATIVE_MS) {
+        delete _results[key];
+        return null;
+    }
+    return r;
+}
+
+function store(key, result, now) {
+    _results[key] = { lines: result.lines, synced: result.synced, at: now };
+}
+
+// What settle() hands the waiting screens when the lookup failed for good
+// (after its retries); null instead means the screen doing it went away.
+const FAILED = "failed";
+
+// True when another screen is already looking `key` up: `fn` then gets its
+// result, FAILED, or null (look it up yourself then).
+// False means the caller does the lookup and must call settle() at the end.
+function join(key, fn) {
+    if (_waiting[key]) {
+        _waiting[key].push(fn);
+        return true;
+    }
+    _waiting[key] = [];
+    return false;
+}
+
+function settle(key, result) {
+    const fns = _waiting[key] || [];
+    delete _waiting[key];
+    for (const fn of fns) {
+        try { fn(result); } catch (e) { /* that screen's wallpaper is gone */ }
+    }
+}

@@ -29,6 +29,14 @@ Item {
     property real length: 0        // µs
     property int corner: 0         // 0 TR, 1 TL, 2 BR, 3 BL
     property int sizePercent: 100
+    // 0 still, 1 light, 2 smooth (the MediaAnimations key). Smooth eases every
+    // frame, which keeps the whole desktop redrawing at the screen's refresh
+    // rate (144–165 Hz on a gaming monitor) for three small bars. Light steps
+    // them a few times a second, which costs next to nothing.
+    property int animations: 1
+    property bool stillForPower: false
+    readonly property int motion: stillForPower ? 0 : animations
+    readonly property bool barsMoving: widget.playing && widget.visible && widget.motion > 0
 
     property var lyricsLines: []
     property bool lyricsSynced: false
@@ -168,24 +176,40 @@ Item {
             spacing: Math.round(4 * widget.unit)
 
             Row {
+                id: bars
                 spacing: Math.round(6 * widget.unit)
+                // Light mode's clock: one step for all three bars, ~7 a second.
+                property int step: 0
+                Timer {
+                    interval: 140
+                    repeat: true
+                    running: widget.barsMoving && widget.motion === 1
+                    onTriggered: bars.step = (bars.step + 1) % 12
+                }
                 // Three bars that move while playing — the only "live" cue.
                 Repeater {
                     model: 3
                     Rectangle {
+                        id: bar
                         required property int index
+                        // light mode: each bar walks its own short height pattern
+                        readonly property var pattern: [[0.4, 0.7, 1.0, 0.8, 0.5, 0.35, 0.6, 0.9, 0.7, 0.45, 0.8, 0.55],
+                                                        [0.8, 0.5, 0.35, 0.6, 1.0, 0.75, 0.4, 0.55, 0.9, 0.6, 0.35, 0.7],
+                                                        [0.55, 0.9, 0.65, 0.4, 0.7, 1.0, 0.8, 0.45, 0.35, 0.75, 0.95, 0.5]][index]
                         width: Math.max(2, Math.round(3 * widget.unit))
                         height: Math.round(11 * widget.unit)
                         anchors.bottom: parent.bottom
                         radius: width / 2
                         color: "#00e676"
                         transformOrigin: Item.Bottom
-                        scale: 0.4
+                        scale: widget.barsMoving && widget.motion === 1 ? pattern[bars.step]
+                             : widget.playing && widget.motion !== 2 ? [0.6, 1.0, 0.75][index]
+                             : 0.4
                         SequentialAnimation on scale {
-                            running: widget.playing && widget.visible
+                            running: widget.barsMoving && widget.motion === 2
                             loops: Animation.Infinite
-                            NumberAnimation { to: 1.0; duration: 380 + index * 120; easing.type: Easing.InOutSine }
-                            NumberAnimation { to: 0.35; duration: 420 + index * 90; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 1.0; duration: 380 + bar.index * 120; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 0.35; duration: 420 + bar.index * 90; easing.type: Easing.InOutSine }
                         }
                     }
                 }
@@ -237,7 +261,13 @@ Item {
                         radius: parent.radius
                         width: parent.width * Math.max(0, Math.min(1, widget.shownPosition / widget.length))
                         color: "#f0f0f0"
-                        Behavior on width { NumberAnimation { duration: 900 } }
+                        // The position arrives every 200 ms, so an easing here
+                        // never finishes and the desktop never stops redrawing;
+                        // only smooth mode pays for that.
+                        Behavior on width {
+                            enabled: widget.motion === 2
+                            NumberAnimation { duration: 900 }
+                        }
                     }
                 }
                 Text {

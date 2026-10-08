@@ -41,6 +41,11 @@ Kirigami.FormLayout {
     property bool cfg_MediaShowInfo
     property bool cfg_MediaLyrics
     property bool cfg_MediaOnlyPlaying
+    property bool cfg_PauseOnBlur
+    property int cfg_MediaAnimations
+    property bool cfg_PauseOnBattery
+    property int cfg_BatteryThreshold
+    property bool cfg_FollowPowerProfile
 
     readonly property bool tr: Qt.locale().name.startsWith("tr")
     function t(en, trText) { return tr ? trText : en; }
@@ -71,6 +76,38 @@ Kirigami.FormLayout {
                 page.t("When any window is focused", "Herhangi bir pencere odaktayken")]
         currentIndex: page.cfg_PauseMode
         onActivated: index => page.cfg_PauseMode = index
+    }
+
+    QQC2.CheckBox {
+        text: page.t("Pause behind active blur", "Aktif bulanıklığın arkasında duraklat")
+        checked: page.cfg_PauseOnBlur
+        onToggled: page.cfg_PauseOnBlur = checked
+    }
+
+    QQC2.CheckBox {
+        Kirigami.FormData.label: page.t("Power:", "Güç:")
+        text: page.t("Play only while plugged in", "Yalnızca şarja takılıyken oynat")
+        checked: page.cfg_PauseOnBattery
+        onToggled: page.cfg_PauseOnBattery = checked
+    }
+
+    RowLayout {
+        Kirigami.FormData.label: page.t("Pause on battery below:", "Pil şu seviyenin altındaysa duraklat:")
+        enabled: !page.cfg_PauseOnBattery
+        QQC2.Slider {
+            from: 0; to: 80; stepSize: 5
+            value: page.cfg_BatteryThreshold
+            onMoved: page.cfg_BatteryThreshold = value
+        }
+        QQC2.Label {
+            text: page.cfg_BatteryThreshold > 0 ? page.cfg_BatteryThreshold + "%" : page.t("Off", "Kapalı")
+        }
+    }
+
+    QQC2.CheckBox {
+        text: page.t("Pause in the power-saver profile", "Güç tasarrufu profilinde duraklat")
+        checked: page.cfg_FollowPowerProfile
+        onToggled: page.cfg_FollowPowerProfile = checked
     }
 
     QQC2.CheckBox {
@@ -155,6 +192,14 @@ Kirigami.FormLayout {
                 page.t("Cover on black (OLED)", "Siyah üzerinde kapak (OLED)")]
         currentIndex: page.cfg_MediaStyle
         onActivated: index => page.cfg_MediaStyle = index
+    }
+
+    QQC2.ComboBox {
+        Kirigami.FormData.label: page.t("Widget motion:", "Widget hareketi:")
+        enabled: page.cfg_MediaMode && page.cfg_MediaPlacement === 0
+        model: [page.t("Still", "Sabit"), page.t("Light", "Hafif"), page.t("Smooth", "Akıcı")]
+        currentIndex: Math.max(0, Math.min(2, page.cfg_MediaAnimations))
+        onActivated: index => page.cfg_MediaAnimations = index
     }
 
     QQC2.CheckBox {

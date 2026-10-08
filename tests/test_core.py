@@ -12,7 +12,7 @@ import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
-from dataclasses import asdict, fields
+from dataclasses import asdict, fields, replace
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -134,6 +134,45 @@ class SettingsTests(unittest.TestCase):
         cfg = (PLUGIN_DIR / "contents" / "ui" / "config.qml").read_text()
         for f in fields(settings.Behaviour):
             self.assertIn(f"cfg_{f.name}", cfg)
+
+    def test_power_defaults_match_kcfg(self):
+        """A desktop never touched by the app runs on main.xml's defaults; they
+        must be the same balanced profile the app shows."""
+        tree = ET.parse(PLUGIN_DIR / "contents" / "config" / "main.xml")
+        ns = "{http://www.kde.org/standards/kcfg/1.0}"
+        defaults = {e.get("name"): e.find(f"{ns}default").text for e in tree.getroot().iter(f"{ns}entry")}
+        b = settings.Behaviour()
+        for key in settings.PROFILES[settings.PROFILE_BALANCED]:
+            v = getattr(b, key)
+            self.assertEqual(defaults[key], str(v).lower() if isinstance(v, bool) else str(v), key)
+
+    def test_profiles(self):
+        self.assertEqual(settings.profile_of(settings.Behaviour()), settings.PROFILE_BALANCED)
+        names = {f.name for f in fields(settings.Behaviour)}
+        for name, keys in settings.PROFILES.items():
+            self.assertLessEqual(set(keys), names)
+            self.assertEqual(settings.profile_of(replace(settings.Behaviour(), **keys)), name)
+        # every profile sets the same keys, so switching never leaves one behind
+        self.assertEqual(len({frozenset(k) for k in settings.PROFILES.values()}), 1)
+        mixed = replace(settings.Behaviour(), PauseOnBattery=True)
+        self.assertEqual(settings.profile_of(mixed), settings.PROFILE_CUSTOM)
+        # unrelated keys do not make a profile "custom"
+        loud = replace(settings.Behaviour(), Muted=False, BlurRadius=48)
+        self.assertEqual(settings.profile_of(loud), settings.PROFILE_BALANCED)
+
+    def test_old_file_without_power_keys_is_balanced(self):
+        s = settings.Settings.from_dict({"schema": settings.SCHEMA, "behaviour": {"PauseMode": 1}})
+        self.assertEqual(settings.profile_of(s.behaviour), settings.PROFILE_BALANCED)
+
+    def test_has_battery(self):
+        from mazewallpaper.gui.settings_view import has_battery
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "AC").mkdir(); (root / "AC" / "type").write_text("Mains\n")
+            self.assertFalse(has_battery(root))
+            (root / "BAT0").mkdir(); (root / "BAT0" / "type").write_text("Battery\n")
+            self.assertTrue(has_battery(root))
+        self.assertFalse(has_battery(Path("/nonexistent")))
 
     def test_from_dict_tolerates_garbage(self):
         s = settings.Settings.from_dict({

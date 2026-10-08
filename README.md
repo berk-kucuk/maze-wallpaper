@@ -74,6 +74,7 @@ Whatever is playing in Spotify, YouTube, a browser or any other MPRIS player sho
 - **Full screen:** the cover moves to the left and the lyrics scroll beside it. The current line is lit; the rest fade with distance.
 - **Corner widget:** the line being sung and the next one appear under the card.
 - **Video titles are cleaned up.** "Artist - Song (Official Video) [4K]" becomes "Song" by "Artist" for the lookup. If only unsynced lyrics exist, they advance with the song's progress.
+- **Holds up to fast skipping.** Only the song that stays gets looked up, requests for songs you skipped past are cancelled, every screen shares one lookup, and a failed request (LRCLIB sometimes answers 503 under load) is retried after 2, 5 and 15 s instead of being remembered as "no lyrics".
 
 ### Active blur
 - **Blur on focus:** while a window has focus, the desktop blurs, and so does the media card.
@@ -84,6 +85,13 @@ Whatever is playing in Spotify, YouTube, a browser or any other MPRIS player sho
 - **Pauses when hidden:** live wallpapers pause behind maximized or fullscreen windows, or whenever any window has focus (you choose). A paused wallpaper uses no CPU or GPU.
 - **Per screen:** each screen pauses on its own. A fullscreen video on one monitor does not stop the wallpaper on the other.
 - **Nothing hidden keeps running:** the full-screen cover pauses the wallpaper under it.
+- **Pauses behind active blur:** once the blur has covered the desktop, a still frame looks the same as a moving one, so the video stops until the blur lifts.
+
+### Power
+- **Profiles:** *High performance* (always moving, smoothest), *Balanced* (the default: stops whenever you cannot really see it) and *Power saver* (moves only on an idle desktop, on mains power). Change any single option and the profile shows as *Custom*.
+- **Laptops:** play live wallpapers only while plugged in, or pause on battery below a charge you choose (20% by default).
+- **System power profile:** optionally pause while Plasma is in its power-saver profile.
+- **Media widget motion:** *Smooth* eases its bars every frame, which keeps the desktop redrawing at the screen's refresh rate while music plays; *Light* steps them a few times a second for a fraction of the cost; *Still* does not move them at all.
 
 ### Interface
 - Frameless window in the shared Maze visual language, OLED dark and light.
